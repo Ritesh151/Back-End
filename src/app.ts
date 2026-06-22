@@ -71,6 +71,23 @@ app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
 
 app.use('/api/v1', requestTimeout(29000), routes);
 
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: 'Backend is live 🚀',
+    status: 'OK',
+  });
+});
+
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
