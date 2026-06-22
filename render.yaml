@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: lead-finder-backend
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
