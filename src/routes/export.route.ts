@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { exporterController } from '../controllers/exporter.controller';
 import { validate } from '../utils/validations';
 import { z } from 'zod';
@@ -46,22 +46,19 @@ const exportSearchSchema = z.object({
 });
 
 // GET /api/v1/export/csv - Export leads to CSV
-router.get('/csv', validate(csvExportSchema), (req, res, next) => {
+router.get('/csv', validate(csvExportSchema), (req: Request, res: Response, next: NextFunction) => {
   exporterController.exportToCSV(req, res, next);
 });
 
-// GET /api/v1/export/excel - Export leads to Excel
-router.get('/excel', validate(excelExportSchema), (req, res, next) => {
+router.get('/excel', validate(excelExportSchema), (req: Request, res: Response, next: NextFunction) => {
   exporterController.exportToExcel(req, res, next);
 });
 
-// POST /api/v1/export/search - Export search results
-router.post('/search', validate(exportSearchSchema), (req, res, next) => {
+router.post('/search', validate(exportSearchSchema), (req: Request, res: Response, next: NextFunction) => {
   exporterController.exportSearchResults(req, res, next);
 });
 
-// GET /api/v1/export/detailed - Export with detailed formatting
-router.get('/detailed', (req, res, next) => {
+router.get('/detailed', (req: Request, res: Response, next: NextFunction) => {
   exporterController.exportWithFormatting(req, res, next);
 });
 

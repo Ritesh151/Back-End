@@ -478,13 +478,13 @@ export class WebsiteIntelligenceEngine {
     const body = (html.match(/<body[\s>][\s\S]*<\/body>/i) || [''])[0]
 
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
-    const emails = body.match(emailRegex) || []
+    const emails: string[] = body.match(emailRegex) || []
 
     const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g
-    const phones = body.match(phoneRegex) || []
+    const phones: string[] = body.match(phoneRegex) || []
 
     const socialLinks: SocialLinkInfo[] = []
-    const anchors = html.match(/<a[^>]+href=["']([^"']+)["'][^>]*>/gi) || []
+    const anchors: string[] = html.match(/<a[^>]+href=["']([^"']+)["'][^>]*>/gi) || []
     anchors.forEach(a => {
       const hrefMatch = a.match(/href=["']([^"']+)["']/i)
       const href = hrefMatch ? hrefMatch[1] : ''

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { contactExtractorController } from '../controllers/contact-extractor.controller';
 import { z } from 'zod';
 import { validate } from '../utils/validations';
@@ -20,37 +20,31 @@ const bulkExtractionSchema = z.object({
 });
 
 // POST /api/v1/extract-contact - Extract contacts from a single lead
-router.post('/', validate(extractionSchema), (req, res, next) => {
+router.post('/', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.extractContacts(req, res, next);
 });
 
-// POST /api/v1/extract-contact/bulk - Bulk extract contacts
-router.post('/bulk', validate(bulkExtractionSchema), (req, res, next) => {
+router.post('/bulk', validate(bulkExtractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.bulkExtractContacts(req, res, next);
 });
 
-// POST /api/v1/extract-contact/crawl - Crawl website for contact info
-router.post('/crawl', validate(extractionSchema), (req, res, next) => {
+router.post('/crawl', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.crawlWebsite(req, res, next);
 });
 
-// POST /api/v1/extract-contact/social - Extract social media links
-router.post('/social', validate(extractionSchema), (req, res, next) => {
+router.post('/social', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.extractSocialLinks(req, res, next);
 });
 
-// POST /api/v1/extract-contact/owner - Detect owner/finder
-router.post('/owner', validate(extractionSchema), (req, res, next) => {
+router.post('/owner', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.detectOwner(req, res, next);
 });
 
-// POST /api/v1/extract-contact/contact-pages - Detect contact pages
-router.post('/contact-pages', validate(extractionSchema), (req, res, next) => {
+router.post('/contact-pages', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.detectContactPages(req, res, next);
 });
 
-// POST /api/v1/extract-contact/full - Full extraction
-router.post('/full', validate(extractionSchema), (req, res, next) => {
+router.post('/full', validate(extractionSchema), (req: Request, res: Response, next: NextFunction) => {
   contactExtractorController.fullExtraction(req, res, next);
 });
 

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { scraperController } from '../controllers/scraper.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { scrapingProgress } from '../services/scraping-progress';
@@ -9,7 +9,7 @@ router.get('/status', authenticate, scraperController.getStatus);
 router.get('/metrics', authenticate, scraperController.getMetrics);
 router.post('/restart', authenticate, scraperController.restart);
 router.get('/sessions', authenticate, scraperController.getSessions);
-router.get('/progress/:sessionId', authenticate, (req, res) => {
+router.get('/progress/:sessionId', authenticate, (req: Request, res: Response) => {
   const { sessionId } = req.params;
   const progress = scrapingProgress.getProgress(sessionId);
   if (!progress) {

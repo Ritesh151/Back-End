@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { APIResponse } from '../utils/api-response';
 
 const router = Router();
 
-router.get('/', (_req, res) => {
+router.get('/', (_req: Request, res: Response) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
 

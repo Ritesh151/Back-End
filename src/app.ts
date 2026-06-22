@@ -1,6 +1,6 @@
 import 'express-async-errors';
 import dotenv from 'dotenv';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -56,7 +56,7 @@ if (process.env.NODE_ENV === 'development') {
 
 app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
-app.use('/api/v1', (req, res, next) => {
+app.use('/api/v1', (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const originalEnd = res.end.bind(res);
   res.end = function (this: Response, ...args: any[]) {
@@ -71,7 +71,7 @@ app.use('/api/v1', (req, res, next) => {
 
 app.use('/api/v1', requestTimeout(29000), routes);
 
-app.get('/health', (_req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'Lead Finder API is running',

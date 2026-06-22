@@ -44,8 +44,18 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
 
   const templates = await whatsAppTemplatesService.getTemplatesForCampaign(campaignId);
 
-  const generatedMessages = [];
-  const skipped = [];
+  const generatedMessages: {
+    leadId: string;
+    companyName: string;
+    phone: string;
+    normalizedPhone: string;
+    message: string;
+    templateType: string;
+    hasWebsite: boolean;
+    whatsappUrl: string;
+    skipReason: null;
+  }[] = [];
+  const skipped: { leadId: string; companyName: string; reason: string }[] = [];
 
   for (const lead of leads) {
     const normalizedPhone = normalizePhone(lead.phone as string | null | undefined);

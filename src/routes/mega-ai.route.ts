@@ -12,11 +12,11 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   };
 };
 
-router.post('/analyze/:leadId', authenticate, validateObjectId('leadId'), (req, res) => {
+router.post('/analyze/:leadId', authenticate, validateObjectId('leadId'), (req: Request, res: Response) => {
   megaAIController.analyzeLead(req, res);
 });
 
-router.post('/analyze-bulk', authenticate, (req, res) => {
+router.post('/analyze-bulk', authenticate, (req: Request, res: Response) => {
   megaAIController.analyzeMultipleLeads(req, res);
 });
 

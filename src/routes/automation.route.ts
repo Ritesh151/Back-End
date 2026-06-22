@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { automationController } from '../controllers/automation.controller';
 import { validate } from '../utils/validations';
 import { z } from 'zod';
@@ -29,52 +29,43 @@ const updateAutomationSchema = z.object({
 });
 
 // GET /api/v1/automation - Get all automations
-router.get('/', (req, res, next) => {
+router.get('/', (req: Request, res: Response, next: NextFunction) => {
   automationController.getAllAutomations(req, res, next);
 });
 
-// GET /api/v1/automation/:id - Get automation by ID
-router.get('/:id', (req, res, next) => {
+router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   automationController.getAutomation(req, res, next);
 });
 
-// POST /api/v1/automation - Create new automation
-router.post('/', validate(createAutomationSchema), (req, res, next) => {
+router.post('/', validate(createAutomationSchema), (req: Request, res: Response, next: NextFunction) => {
   automationController.createAutomation(req, res, next);
 });
 
-// PATCH /api/v1/automation/:id - Update automation
-router.patch('/:id', validate(updateAutomationSchema), (req, res, next) => {
+router.patch('/:id', validate(updateAutomationSchema), (req: Request, res: Response, next: NextFunction) => {
   automationController.updateAutomation(req, res, next);
 });
 
-// PATCH /api/v1/automation/:id/toggle - Toggle automation status
-router.patch('/:id/toggle', (req, res, next) => {
+router.patch('/:id/toggle', (req: Request, res: Response, next: NextFunction) => {
   automationController.toggleAutomation(req, res, next);
 });
 
-// DELETE /api/v1/automation/:id - Delete automation
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
   automationController.deleteAutomation(req, res, next);
 });
 
-// POST /api/v1/automation/:id/run - Run automation manually
-router.post('/:id/run', (req, res, next) => {
+router.post('/:id/run', (req: Request, res: Response, next: NextFunction) => {
   automationController.runAutomation(req, res, next);
 });
 
-// GET /api/v1/automation/:id/logs - Get automation logs
-router.get('/:id/logs', (req, res, next) => {
+router.get('/:id/logs', (req: Request, res: Response, next: NextFunction) => {
   automationController.getAutomationLogs(req, res, next);
 });
 
-// GET /api/v1/automation/:id/statistics - Get automation statistics
-router.get('/:id/statistics', (req, res, next) => {
+router.get('/:id/statistics', (req: Request, res: Response, next: NextFunction) => {
   automationController.getAutomationStatistics(req, res, next);
 });
 
-// GET /api/v1/automation/:id/exports - Get export history
-router.get('/:id/exports', (req, res, next) => {
+router.get('/:id/exports', (req: Request, res: Response, next: NextFunction) => {
   automationController.getExportHistory(req, res, next);
 });
 

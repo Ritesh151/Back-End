@@ -81,7 +81,7 @@ export class OutreachService {
   }
 
   async generateOutreachForMultipleLeads(leadIds: string[]) {
-    const results = [];
+    const results: { leadId: string; success: boolean; error?: string }[] = [];
     for (const leadId of leadIds) {
       try {
         await this.generateOutreachForLead(leadId);
