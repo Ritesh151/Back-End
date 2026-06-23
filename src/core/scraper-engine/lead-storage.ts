@@ -179,12 +179,19 @@ export class LeadStorage {
         }
       } catch (err: any) {
         if (err.code === 11000 || (err.writeErrors && err.writeErrors.length > 0)) {
-          const insertedCount = err.insertedDocs?.length || 0;
-          const dupCount = batch.length - insertedCount;
+          const writeErrList = (err as any)?.writeErrors || [];
+          const failedIndices = new Set(writeErrList.map((we: any) => we.index));
+          const dupCount = failedIndices.size;
+          const insertedCount = batch.length - dupCount;
           totalStored += insertedCount;
           totalDuplicates += dupCount;
-          if (insertedCount > 0) {
-            stored.push(...batch.slice(0, insertedCount));
+          for (let j = 0; j < batch.length; j++) {
+            if (failedIndices.has(j)) continue;
+            stored.push(batch[j]);
+            if (context.sessionId) {
+              searchStatus.incrementSaved(context.sessionId as string);
+              searchStatus.addLiveLead(context.sessionId as string, batch[j].companyName, batch[j].source);
+            }
           }
         } else {
           logger.warn({ err: err.message }, 'LeadStorage: Batch insert failed');

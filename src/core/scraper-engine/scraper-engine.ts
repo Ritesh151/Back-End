@@ -169,27 +169,21 @@ export class ScraperEngine {
 
   private async executeWithConcurrencyLimit(tasks: ScrapeTask[], sessionId?: string): Promise<ScraperResult[]> {
     const results: ScraperResult[] = [];
-    const running: Array<Promise<void>> = [];
+    const running = new Set<Promise<void>>();
+    const maxConcurrent = Math.max(...Object.values(MAX_CONCURRENCY));
 
     for (const task of tasks) {
-      const maxConcurrent = MAX_CONCURRENCY[task.source as keyof typeof MAX_CONCURRENCY] || 2;
       const promise = this.executeTask(task, results, sessionId);
-      running.push(promise);
+      running.add(promise);
+      const cleanup = () => running.delete(promise);
+      promise.then(cleanup, cleanup);
 
-      if (running.length >= maxConcurrent) {
+      if (running.size >= maxConcurrent) {
         await Promise.race(running);
-        const stillRunning = running.filter(p => {
-          try {
-            return Promise.resolve(p).then(() => false).catch(() => false);
-          } catch {
-            return true;
-          }
-        });
-        running.splice(0, running.length, ...stillRunning);
       }
     }
 
-    await Promise.allSettled(running);
+    await Promise.allSettled([...running]);
     return results;
   }
 

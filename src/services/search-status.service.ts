@@ -112,7 +112,7 @@ class SearchStatusTracker {
       session.updatedAt = new Date().toISOString();
       this.recalculatePercentage(session);
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -124,7 +124,7 @@ class SearchStatusTracker {
       this.recalculatePercentage(session);
       emitLeadSaved(sessionId, { totalSaved: session.uniqueLeads });
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -136,7 +136,7 @@ class SearchStatusTracker {
       this.recalculatePercentage(session);
       emitDuplicateRemoved(sessionId, { totalDuplicates: session.duplicatesRemoved });
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -147,7 +147,7 @@ class SearchStatusTracker {
       session.updatedAt = new Date().toISOString();
       this.recalculatePercentage(session);
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -158,7 +158,7 @@ class SearchStatusTracker {
       session.updatedAt = new Date().toISOString();
       this.recalculatePercentage(session);
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -167,7 +167,7 @@ class SearchStatusTracker {
     if (session) {
       session.estimatedTotal = total;
       this.recalculatePercentage(session);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -177,7 +177,7 @@ class SearchStatusTracker {
       session.currentSource = source;
       session.updatedAt = new Date().toISOString();
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session).catch(() => {});
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -187,7 +187,7 @@ class SearchStatusTracker {
       session.estimatedRemaining = 0;
     } else {
       const processed = session.uniqueLeads + session.duplicatesRemoved + session.failedCount;
-      session.progressPercentage = Math.min(99, Math.round((processed / session.leadsFound) * 100));
+      session.progressPercentage = Math.round((processed / session.leadsFound) * 100);
       session.estimatedRemaining = Math.max(0, session.leadsFound - processed);
     }
   }
@@ -214,7 +214,7 @@ class SearchStatusTracker {
       session.uniqueLeads = count;
       session.updatedAt = new Date().toISOString();
       this.recalculatePercentage(session);
-      this.updateDBSearchHistory(session);
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -224,7 +224,7 @@ class SearchStatusTracker {
       session.duplicatesRemoved = count;
       session.updatedAt = new Date().toISOString();
       this.recalculatePercentage(session);
-      this.updateDBSearchHistory(session);
+      void this.updateDBSearchHistory(session);
     }
   }
 
@@ -235,7 +235,7 @@ class SearchStatusTracker {
       session.updatedAt = new Date().toISOString();
       emitSourceUpdate(sessionId, { source, count, status: 'completed' });
       this.emitProgress(sessionId);
-      this.updateDBSearchHistory(session);
+      void this.updateDBSearchHistory(session);
     }
   }
 
