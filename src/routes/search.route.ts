@@ -146,6 +146,7 @@ router.delete(
 router.post(
   '/',
   (req: Request, res: Response, next: NextFunction) => {
+    res.locals.reqStartTime = Date.now();
     logger.info({
       timestamp: new Date().toISOString(),
       method: req.method,

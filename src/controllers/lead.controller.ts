@@ -128,10 +128,12 @@ export class LeadController {
           );
           logger.info({ sessionId: jobId, totalStored: count }, 'Search completed');
         } catch (error) {
-          logger.error({ err: error, sessionId: jobId }, 'Search failed');
+          const errMsg = error instanceof Error ? error.message : 'Unknown error';
+          const errStack = error instanceof Error ? error.stack : undefined;
+          logger.error({ err: errMsg, stack: errStack, sessionId: jobId }, '[search] Search failed in background task');
           await SearchAnalytics.findOneAndUpdate(
             { sessionId: jobId },
-            { $set: { status: 'failed', failureReason: error instanceof Error ? error.message : 'Unknown error' } }
+            { $set: { status: 'failed', failureReason: errMsg } }
           );
         }
       });

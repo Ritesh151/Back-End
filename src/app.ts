@@ -25,6 +25,17 @@ let isShuttingDown = false;
 
 dotenv.config();
 
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'FRONTEND_URL',
+];
+
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error(`FATAL: Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
 process.on('unhandledRejection', (reason: unknown) => {
   logger.fatal({ err: reason instanceof Error ? reason.message : String(reason) }, 'UNHANDLED REJECTION');
   process.exit(1);
