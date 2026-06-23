@@ -1,4 +1,4 @@
-import csvWriter = require('csv-write-stream');
+import csvWriter from 'csv-write-stream';
 import { createWriteStream } from 'fs';
 import { Lead, ILead } from '../models/Lead';
 import { logger } from '../utils/logger';
