@@ -7,9 +7,13 @@ let io: Server | null = null;
 const SESSION_NS = '/automation-monitor';
 
 export function initSocketManager(httpServer: HTTPServer): Server {
+  const corsOrigin = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
+    : 'http://localhost:3000';
+
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: corsOrigin,
       credentials: true,
     },
     path: '/ws',
