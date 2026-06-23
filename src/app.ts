@@ -139,7 +139,7 @@ const startServer = async (): Promise<void> => {
 
     setImmediate(async () => {
       try {
-        const { leadMigrationService } = await import('./services/lead-migration.service');
+        const { leadMigrationService } = await import('./services/lead-migration.service.js');
         const result = await leadMigrationService.migrateWebsiteDetectionFields(200);
         logger.info({ result }, '[Startup] Website detection migration complete');
       } catch (error) {

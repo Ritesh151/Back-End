@@ -77,7 +77,7 @@ export class LeadController {
       };
 
       // Queue initialization moved to search.queue.ts
-logger.info({
+      logger.info({
         keyword: options.keyword,
         location: options.location,
         state,
@@ -556,7 +556,7 @@ logger.info({
 
   async reprocessAllLeads(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { Lead } = await import('../models/Lead');
+      const { Lead } = await import('../models/Lead.js');
 
       const leads = await Lead.find({
         website: { $exists: true, $nin: [null, ''] },

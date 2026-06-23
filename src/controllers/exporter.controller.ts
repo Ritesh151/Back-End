@@ -115,7 +115,7 @@ export class ExporterController {
       if (format === 'csv') {
         // For CSV export from search, we need to call exportToCSV directly
         // First scrape the search results
-        const { ScraperService } = await import('../services/scraper.service');
+        const { ScraperService } = await import('../services/scraper.service.js');
         const scraper = new ScraperService();
         
         await scraper.scrapeBusinesses({

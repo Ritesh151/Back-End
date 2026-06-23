@@ -87,6 +87,7 @@ export class CSVExporter {
     }
 
     // Create exports directory if it doesn't exist
+    const { User } = await import('./models/User.js');
     const fs = await import('fs');
     if (!fs.existsSync(filePath)) {
       fs.mkdirSync(filePath, { recursive: true });
@@ -345,7 +346,8 @@ export class CSVExporter {
     logger.info(`CSVExporter: Exporting search results for "${keyword}" in "${location}"`);
 
     // First, perform search to get lead IDs
-    const { ScraperService } = await import('./../services/scraper.service');
+    const session = await (await import('../../automation/area-automation.model.js')).AreaSessionModel.findById(sessionId).lean();
+    const { ScraperService } = await import('./../services/scraper.service.js');
     const scraper = new ScraperService();
 
     await scraper.scrapeBusinesses({
