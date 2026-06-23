@@ -1,12 +1,12 @@
 services:
   - type: web
     name: lead-finder-backend
-    env: docker
-    dockerfilePath: Dockerfile
-    dockerContext: .
+    env: node
     region: singapore
     plan: free
     healthCheckPath: /health
+    buildCommand: npm install && npx playwright install --with-deps chromium && npm run build
+    startCommand: node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
