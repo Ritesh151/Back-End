@@ -145,6 +145,20 @@ router.delete(
 
 router.post(
   '/',
+  (req: Request, res: Response, next: NextFunction) => {
+    logger.info({
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      route: req.originalUrl,
+      body: req.body,
+      keyword: req.body?.keyword,
+      state: req.body?.state,
+      city: req.body?.city,
+      area: req.body?.area,
+      sessionId: req.body?.sessionId
+    }, '[search] Immediate request log: Search request received');
+    next();
+  },
   requestTimeout(180000),
   validate(searchRequestSchema),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
