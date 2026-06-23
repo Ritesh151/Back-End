@@ -26,6 +26,7 @@ export class PlaywrightBrowser {
           '--disable-dev-shm-usage',
           '--disable-gpu',
         ],
+        executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       });
 
       this.context = await this.browser.newContext({

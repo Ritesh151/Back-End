@@ -202,6 +202,12 @@ export class ScraperEngine {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error({
+        err: error instanceof Error ? error.stack || error.message : String(error),
+        source: task.source,
+        sessionId,
+      }, `ScraperEngine: Task execution failed for source ${task.source}`);
+      
       results.push({
         success: false,
         message: `${task.source} failed: ${errMsg}`,

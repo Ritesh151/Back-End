@@ -227,7 +227,7 @@ export class BrowserManager {
       if (sameTypeIdle) {
         logger.info({ browserType }, 'BrowserManager: Reusing idle browser');
         for (const page of sameTypeIdle.pages) {
-          try { await page.close(); this.totalPagesClosed++; } catch {}
+          try { await page.close(); this.totalPagesClosed++; } catch { }
         }
         sameTypeIdle.pages.clear();
         sameTypeIdle.inUse = true;
@@ -242,7 +242,7 @@ export class BrowserManager {
       if (anyIdle) {
         logger.info({ browserType, reusingType: anyIdle.browserType }, 'BrowserManager: Reusing any idle browser');
         for (const page of anyIdle.pages) {
-          try { await page.close(); this.totalPagesClosed++; } catch {}
+          try { await page.close(); this.totalPagesClosed++; } catch { }
         }
         anyIdle.pages.clear();
         anyIdle.inUse = true;
@@ -268,6 +268,7 @@ export class BrowserManager {
         headless: true,
         args: launchArgs,
         timeout: BROWSER_LAUNCH_TIMEOUT_MS,
+        executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       });
 
       browser.on('disconnected', () => {
@@ -347,12 +348,12 @@ export class BrowserManager {
   private async destroyBrowser(pooled: ManagedBrowser): Promise<void> {
     try {
       for (const page of pooled.pages) {
-        try { await page.close(); this.totalPagesClosed++; } catch {}
+        try { await page.close(); this.totalPagesClosed++; } catch { }
       }
       pooled.pages.clear();
-      try { await pooled.context.close(); } catch {}
-      try { await pooled.browser.close(); } catch {}
-    } catch {}
+      try { await pooled.context.close(); } catch { }
+      try { await pooled.browser.close(); } catch { }
+    } catch { }
   }
 
   private startCleanupTimer(): void {
