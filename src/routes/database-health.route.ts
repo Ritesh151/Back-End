@@ -36,19 +36,20 @@ interface DatabaseStats {
   };
 }
 
-router.get('/database-health', async (req, res) => {
+router.get('/database-health', async (_req, res) => {
   const startTime = Date.now();
 
   try {
     // 1. Check connection status
     const db = mongoose.connection;
     const readyState = db.readyState;
-    const readyStateLabel = {
+    const readyStateLabels: Record<number, string> = {
       0: 'disconnected',
       1: 'connected',
       2: 'connecting',
       3: 'disconnecting',
-    }[readyState] || 'unknown';
+    };
+    const readyStateLabel = readyStateLabels[readyState] || 'unknown';
 
     // 2. Get database stats
     let stats: any = {};
@@ -58,7 +59,7 @@ router.get('/database-health', async (req, res) => {
       stats = await db.db?.stats();
       dbConnected = true;
     } catch (statsError) {
-      logger.warn('Could not fetch database stats:', statsError instanceof Error ? statsError.message : String(statsError));
+      logger.warn(`Could not fetch database stats: ${statsError instanceof Error ? statsError.message : String(statsError)}`);
     }
 
     // 3. Count documents in collections (with timeout protection)
@@ -71,7 +72,7 @@ router.get('/database-health', async (req, res) => {
         new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 5000)),
       ]) as number;
     } catch (error) {
-      logger.warn('Could not count leads:', error instanceof Error ? error.message : String(error));
+      logger.warn(`Could not count leads: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     try {
@@ -80,7 +81,7 @@ router.get('/database-health', async (req, res) => {
         new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 5000)),
       ]) as number;
     } catch (error) {
-      logger.warn('Could not count users:', error instanceof Error ? error.message : String(error));
+      logger.warn(`Could not count users: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     // 4. Get indexes
@@ -89,7 +90,7 @@ router.get('/database-health', async (req, res) => {
       const indexes = await Lead.collection.getIndexes();
       indexNames = Object.keys(indexes);
     } catch (error) {
-      logger.warn('Could not fetch indexes:', error instanceof Error ? error.message : String(error));
+      logger.warn(`Could not fetch indexes: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     const performanceTime = Date.now() - startTime;
@@ -99,7 +100,7 @@ router.get('/database-health', async (req, res) => {
       status: readyState === 1 ? 'healthy' : readyState === 2 ? 'connecting' : 'unhealthy',
       database: {
         connected: dbConnected && readyState === 1,
-        name: db.getName() || 'unknown',
+        name: db.name || 'unknown',
         collections: stats?.collections || 0,
         dataSize: stats?.dataSize || 0,
         avgObjSize: stats?.avgObjSize || 0,
@@ -130,7 +131,7 @@ router.get('/database-health', async (req, res) => {
 
     res.status(httpStatus).json(response);
 
-    logger.info('Database health check completed', { status: response.status, httpStatus });
+    logger.info({ status: response.status, httpStatus }, 'Database health check completed');
   } catch (error) {
     logger.error(
       error instanceof Error ? error : new Error(String(error)),
@@ -148,7 +149,7 @@ router.get('/database-health', async (req, res) => {
 });
 
 // Quick status endpoint (lighter weight)
-router.get('/database-status', async (req, res) => {
+router.get('/database-status', async (_req, res) => {
   try {
     const db = mongoose.connection;
     const readyState = db.readyState;
