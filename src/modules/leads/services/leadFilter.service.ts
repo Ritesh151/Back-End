@@ -1177,7 +1177,7 @@ export class LeadFilterService {
     area?: string;
   }): Promise<FilterOptionsResponse> {
     const cacheKey = `filterOptions:${JSON.stringify(filters || {})}`;
-    const cached = cacheService.get<FilterOptionsResponse>(cacheKey);
+    const cached = await cacheService.get<FilterOptionsResponse>(cacheKey);
     if (cached) return cached;
 
     const baseQuery: Record<string, unknown> = {};
@@ -1236,7 +1236,7 @@ export class LeadFilterService {
       statuses,
     };
 
-    cacheService.set(cacheKey, result, 30000);
+    await cacheService.set(cacheKey, result, 30000);
     return result;
   }
 

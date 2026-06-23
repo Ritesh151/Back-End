@@ -1436,6 +1436,7 @@ leadSchema.index({ finalConfidence: -1 });
 
 leadSchema.index({ searchedState: 1, searchedCity: 1, searchedArea: 1 });
 leadSchema.index({ searchedKeyword: 1, searchedState: 1, searchedCity: 1, searchedArea: 1 });
+leadSchema.index({ searchedState: 1, searchedCity: 1, searchedArea: 1, category: 1 });
 leadSchema.index({ searchedKeyword: 1, createdAt: -1 });
 leadSchema.index({ semanticKeyword: 1, createdAt: -1 });
 leadSchema.index({ category: 1, source: 1 });

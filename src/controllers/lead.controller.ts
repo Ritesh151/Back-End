@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ScraperService, ScrapeOptions } from '../services/scraper.service';
+
 import { LeadService } from '../services/lead.service';
 import { LeadQualificationService } from '../services/lead-qualification.service';
 import { WebsiteAnalyzerService } from '../services/website-analyzer.service';
@@ -8,27 +8,32 @@ import { leadAuditProcessor } from '../services/lead-audit-processor.service';
 import { leadMigrationService } from '../services/lead-migration.service';
 import { leadFilterService } from '../modules/leads/services/leadFilter.service';
 import { leadStatisticsService } from '../services/lead-statistics.service';
+
 import { Lead } from '../models/Lead';
 import { SearchAnalytics } from '../models/SearchAnalytics';
 import { websiteAnalysisService } from '../services/website-analysis.service';
-import { searchStatus } from '../services/search-status.service';
+// import { searchStatus } from '../services/search-status.service'; // Unused
 import { APIResponse } from '../utils/api-response';
+import { ScrapeOptions } from '../services/scraper.service';
 import { cacheService } from '../services/cache.service';
 import { logger } from '../utils/logger';
 import {
   AnalyzeRequest,
   BulkAnalyzeRequest,
 } from '../types/analysis.types';
-import { semanticSearchService } from '../services/semantic-search.service';
+// import { semanticSearchService } from '../services/semantic-search.service'; // Unused
+import { searchQueue } from '../queues/search.queue';
+
+import crypto from 'crypto';
 
 export class LeadController {
-  private scraperService: ScraperService;
+  // private scraperService: ScraperService; // Unused
   private leadService: LeadService;
   private leadQualificationService: LeadQualificationService;
   private websiteAnalyzerService: WebsiteAnalyzerService;
 
   constructor() {
-    this.scraperService = new ScraperService();
+    // this.scraperService = new ScraperService(); // Removed unused service
     this.leadService = new LeadService();
     this.leadQualificationService = new LeadQualificationService();
     this.websiteAnalyzerService = new WebsiteAnalyzerService();
@@ -50,7 +55,7 @@ export class LeadController {
       // Build location string from state/city/area or use plain location
       let locationString = location || '';
       if (state && city) {
-        locationString = area 
+        locationString = area
           ? `${area}, ${city}, ${state}`
           : `${city}, ${state}`;
       }
@@ -71,167 +76,48 @@ export class LeadController {
         semanticKeyword: req.body.semanticKeyword,
       };
 
-      const startedAt = Date.now();
-      logger.info({ 
-        keyword: options.keyword, 
-        location: options.location, 
+      // Queue initialization moved to search.queue.ts
+logger.info({
+        keyword: options.keyword,
+        location: options.location,
         state,
         city,
         area,
-        sources: options.sources, 
-        limit: options.limit 
+        sources: options.sources,
+        limit: options.limit
       }, '[search] request received');
-      const result = await this.scraperService.scrapeBusinesses(options);
-      const hasStoredData = result.totalStored > 0;
-      logger.info({
-        extracted: result.totalExtracted, stored: result.totalStored,
-        duplicates: result.totalDuplicates, success: result.success,
-        hasStoredData, durationMs: Date.now() - startedAt,
-      }, '[search] scraper completed');
 
-      // IMPORTANT: succeed if ANY leads were stored in MongoDB, even if the
-      // scraper encountered partial errors. MongoDB is the source of truth.
-      const leads = result.leads || [];
-      const count = leads.length;
-      const apiSuccess = result.success || hasStoredData;
-      const pagination = {
-        page: 1,
-        limit: options.limit,
-        total: count,
-        totalPages: Math.max(1, Math.ceil((count || 1) / options.limit)),
-      };
+      const jobId = sessionId || crypto.randomUUID();
+      options.sessionId = jobId;
 
-      const sourceCounts: Record<string, number> = {};
-      if (result.results) {
-        for (const [src, res] of Object.entries(result.results)) {
-          sourceCounts[src] = res.totalStored || 0;
-        }
-      }
-
-      let semanticInfo;
-      if (useSemantic) {
-        try {
-          semanticInfo = semanticSearchService.getSearchCoverageReport(
-            options.keyword,
-            options.sources || ['google-maps'],
-            state,
-            city,
-            area
-          );
-        } catch {
-          semanticInfo = undefined;
-        }
-      }
-
-      if (res.headersSent) { return; }
-
-      try {
-        if (!apiSuccess && result.totalExtracted === 0) {
-          res.status(200).json({
-            success: true,
-            message: result.message || 'No leads found',
-            count: 0,
-            data: [],
-            leads: [],
-            pagination: { ...pagination, total: 0, totalPages: 0 },
-            searchQuery: options.keyword,
-            sources: sourceCounts,
-            totalUniqueLeads: 0,
-            semanticInfo,
-            meta: {
-              extracted: result.totalExtracted,
-              stored: result.totalStored,
-              duplicates: result.totalDuplicates,
-              durationMs: Date.now() - startedAt,
-            },
-          });
-          return;
-        }
-
-        if (res.headersSent) { return; }
-
-        try {
-        const expandedKeywords = semanticInfo?.expandedKeywordsPreview || [];
-        const keywordBreakdown: Record<string, number> = {};
-        if (expandedKeywords.length > 0) {
-          const perKeyword = Math.max(1, Math.floor(count / expandedKeywords.length));
-          expandedKeywords.forEach(kw => { keywordBreakdown[kw] = perKeyword; });
-          keywordBreakdown[options.keyword] = count - (perKeyword * expandedKeywords.length);
-        }
-
-        await SearchAnalytics.findOneAndUpdate(
-          { sessionId: options.sessionId || '' },
-          {
-            $set: {
-              sessionId: options.sessionId || '',
-              keyword: options.keyword,
-              expandedKeywords,
-              state: options.state,
-              city: options.city,
-              area: options.area,
-              location: options.location || '',
-              sources: options.sources || [],
-              totalLeadsFound: result.totalExtracted || 0,
-              totalUniqueLeads: count,
-              totalDuplicatesRemoved: result.totalDuplicates || 0,
-              sourceBreakdown: sourceCounts,
-              keywordBreakdown,
-              status: 'completed',
-              duration: Date.now() - startedAt,
-              completedAt: new Date(),
-            },
+      // Create an initial SearchAnalytics record to track the pending state
+      await SearchAnalytics.findOneAndUpdate(
+        { sessionId: jobId },
+        {
+          $set: {
+            sessionId: jobId,
+            keyword: options.keyword,
+            state: options.state,
+            city: options.city,
+            area: options.area,
+            location: options.location || '',
+            sources: options.sources || [],
+            status: 'running',
+            startedAt: new Date(),
           },
-          { upsert: true }
-        );
+        },
+        { upsert: true }
+      );
 
-        if (options.sessionId) {
-          searchStatus.updateUniqueLeads(options.sessionId, count);
-          searchStatus.updateDuplicatesRemoved(options.sessionId, result.totalDuplicates || 0);
-          for (const [src, srcCount] of Object.entries(sourceCounts)) {
-            searchStatus.updateSourceBreakdown(options.sessionId, src, srcCount);
-          }
-          for (const [kw, kwCount] of Object.entries(keywordBreakdown)) {
-            searchStatus.updateKeywordBreakdown(options.sessionId, kw, kwCount);
-          }
-        }
-      } catch (analyticsError) {
-        logger.error({ analyticsError }, '[search] Failed to store analytics');
-      }
+      // Enqueue job to BullMQ
+      const job = await searchQueue.add('scrape-businesses', options, { jobId });
 
-      logger.info({ count, durationMs: Date.now() - startedAt, apiSuccess }, '[search] API response');
-        res.status(200).json({
-          success: true,
-          message: hasStoredData
-            ? `Leads scraped successfully: ${count} saved`
-            : (result.message || 'Scraping completed'),
-          count,
-          data: leads,
-          leads,
-          pagination,
-          searchQuery: options.keyword,
-          sources: sourceCounts,
-          totalUniqueLeads: count,
-          semanticInfo,
-          meta: {
-            extracted: result.totalExtracted,
-            stored: result.totalStored,
-            duplicates: result.totalDuplicates,
-            durationMs: Date.now() - startedAt,
-          },
-        });
-      } catch {
-        if (!res.headersSent) {
-          res.status(200).json({
-            success: true,
-            message: hasStoredData ? `Leads scraped successfully: ${count} saved` : 'Search completed',
-            count,
-            data: leads,
-            leads,
-            pagination,
-            searchQuery: options.keyword,
-          });
-        }
-      }
+      res.status(202).json({
+        success: true,
+        message: 'Search started in background',
+        jobId: job.id,
+      });
+
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
       const errStack = error instanceof Error ? error.stack : undefined;
@@ -246,7 +132,7 @@ export class LeadController {
 
   async getLeadStatistics(_req: Request, res: Response, _next: NextFunction): Promise<void> {
     try {
-      const cachedStats = cacheService.get<Record<string, number>>('leadStatistics');
+      const cachedStats = await cacheService.get<Record<string, number>>('leadStatistics');
       if (cachedStats) {
         res.status(200).json({ success: true, data: cachedStats });
         return;
@@ -267,7 +153,7 @@ export class LeadController {
         failedCount: stats.failedCount,
       };
 
-      cacheService.set('leadStatistics', data, 10000);
+      await cacheService.set('leadStatistics', data, 10000);
 
       res.status(200).json({ success: true, data });
     } catch (error: unknown) {
@@ -360,7 +246,7 @@ export class LeadController {
       const city = req.query.city?.toString();
 
       const cacheKey = `filterCounts:${category || ''}:${state || ''}:${city || ''}`;
-      const cached = cacheService.get<{ total: number; withWebsite: number; withPhone: number; withEmail: number; validated: number }>(cacheKey);
+      const cached = await cacheService.get<{ total: number; withWebsite: number; withPhone: number; withEmail: number; validated: number }>(cacheKey);
       if (cached) {
         res.status(200).json({ success: true, data: cached });
         return;
@@ -380,7 +266,7 @@ export class LeadController {
       ]);
 
       const data = { total, withWebsite, withPhone, withEmail, validated };
-      cacheService.set(cacheKey, data, 15000);
+      await cacheService.set(cacheKey, data, 15000);
 
       res.status(200).json({ success: true, data });
     } catch (error: unknown) {
@@ -857,7 +743,7 @@ export class LeadController {
       };
 
       const cacheKey = `searchHistory:${search || ''}:${filterState || ''}:${filterKeyword || ''}:${filterDate || ''}:${page}:${limit}`;
-      const cached = cacheService.get<{ total: number; data: any[] }>(cacheKey);
+      const cached = await cacheService.get<{ total: number; data: any[] }>(cacheKey);
       if (cached) {
         logger.info({ total: cached.total, page, limit }, '[getSearchHistory] Cache hit');
         const dataWithSrNo = cached.data.map((item: any, idx: number) => ({

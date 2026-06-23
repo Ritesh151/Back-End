@@ -19,10 +19,10 @@ export const connectDB = async (): Promise<void> => {
     }
 
     const opts = {
-      maxPoolSize: 100,
+      maxPoolSize: 50,
       minPoolSize: 10,
       maxIdleTimeMS: 30000,
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       heartbeatFrequencyMS: 10000,
       family: 4,

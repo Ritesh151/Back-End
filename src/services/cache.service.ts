@@ -1,70 +1,40 @@
 import { logger } from '../utils/logger';
-
-interface CacheEntry<T> {
-  data: T;
-  expiresAt: number;
-}
+import { redisClient } from '../config/redis';
 
 export class CacheService {
-  private store = new Map<string, CacheEntry<unknown>>();
-  private hitCount = 0;
-  private missCount = 0;
-  private maxSize: number;
-
-  constructor(maxSize = 1000) {
-    this.maxSize = maxSize;
-
-    setInterval(() => this.evictExpired(), 60000);
-  }
-
-  get<T>(key: string): T | null {
-    const entry = this.store.get(key);
-    if (!entry) {
-      this.missCount++;
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const data = await redisClient.get(key);
+      if (!data) return null;
+      return JSON.parse(data) as T;
+    } catch (error) {
+      logger.error({ err: error, key }, 'Redis Cache Get Error');
       return null;
     }
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      this.missCount++;
-      return null;
+  }
+
+  async set<T>(key: string, data: T, ttlMs: number): Promise<void> {
+    try {
+      const ttlSeconds = Math.ceil(ttlMs / 1000);
+      await redisClient.set(key, JSON.stringify(data), 'EX', ttlSeconds);
+    } catch (error) {
+      logger.error({ err: error, key }, 'Redis Cache Set Error');
     }
-    this.hitCount++;
-    return entry.data as T;
   }
 
-  set<T>(key: string, data: T, ttlMs: number): void {
-    if (this.store.size >= this.maxSize) {
-      const oldestKey = this.store.keys().next().value;
-      if (oldestKey) this.store.delete(oldestKey);
+  async delete(key: string): Promise<void> {
+    try {
+      await redisClient.del(key);
+    } catch (error) {
+      logger.error({ err: error, key }, 'Redis Cache Delete Error');
     }
-    this.store.set(key, { data, expiresAt: Date.now() + ttlMs });
   }
 
-  delete(key: string): void {
-    this.store.delete(key);
-  }
-
-  clear(): void {
-    this.store.clear();
-  }
-
-  get stats(): { size: number; hits: number; misses: number; hitRate: string } {
-    const total = this.hitCount + this.missCount;
-    const hitRate = total > 0 ? `${((this.hitCount / total) * 100).toFixed(1)}%` : '0%';
-    return { size: this.store.size, hits: this.hitCount, misses: this.missCount, hitRate };
-  }
-
-  private evictExpired(): void {
-    const now = Date.now();
-    let evicted = 0;
-    for (const [key, entry] of this.store) {
-      if (now > entry.expiresAt) {
-        this.store.delete(key);
-        evicted++;
-      }
-    }
-    if (evicted > 0) {
-      logger.debug({ evicted, remaining: this.store.size }, 'Cache: Evicted expired entries');
+  async clear(): Promise<void> {
+    try {
+      await redisClient.flushdb();
+    } catch (error) {
+      logger.error({ err: error }, 'Redis Cache Clear Error');
     }
   }
 }

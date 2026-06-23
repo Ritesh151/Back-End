@@ -1,16 +1,19 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    "lib": ["ES2021", "DOM"],
+    "lib": [
+      "ES2021",
+      "DOM"
+    ],
     "module": "commonjs",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowJs": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "removeComments": true,
     "incremental": true,
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noImplicitAny": true,
     "strictNullChecks": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
@@ -26,6 +29,13 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
 }
