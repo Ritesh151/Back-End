@@ -60,5 +60,9 @@ const searchHistorySchema = new Schema<ISearchHistory>(
 searchHistorySchema.index({ createdAt: -1 });
 searchHistorySchema.index({ state: 1, city: 1, area: 1 });
 searchHistorySchema.index({ status: 1 });
+searchHistorySchema.index({ status: 1, startedAt: -1 });
+searchHistorySchema.index({ status: 1, isRunning: 1, startedAt: -1 });
+searchHistorySchema.index({ keyword: 1 });
+searchHistorySchema.index({ searchSessionId: 1, status: 1 });
 
 export const SearchHistory = model<ISearchHistory>('SearchHistory', searchHistorySchema);

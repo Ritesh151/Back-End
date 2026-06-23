@@ -12,7 +12,6 @@ export interface LeadStatistics {
   sentCount: number;
   skippedCount: number;
   failedCount: number;
-  leadIds: string[];
   mongoQuery: Record<string, unknown>;
   appliedFilters: string[];
 }
@@ -31,7 +30,7 @@ export class LeadStatisticsService {
       '[LeadStatistics] Building base query'
     );
 
-    const [total, websiteCount, noWebsiteCount, withPhoneCount, withoutPhoneCount, statusStats, allLeadIds] = await Promise.all([
+    const [total, websiteCount, noWebsiteCount, withPhoneCount, withoutPhoneCount, statusStats] = await Promise.all([
       Lead.countDocuments(this.baseQuery),
       Lead.countDocuments({
         ...this.baseQuery,
@@ -67,10 +66,6 @@ export class LeadStatisticsService {
           },
         },
       ]),
-      Lead.find(this.baseQuery)
-        .select('_id')
-        .lean()
-        .then((docs) => docs.map((d) => (d._id as { toString(): string }).toString())),
     ]);
 
     const statusMap: Record<string, number> = {
@@ -101,7 +96,6 @@ export class LeadStatisticsService {
       sentCount: statusMap.manually_sent,
       skippedCount: statusMap.skipped,
       failedCount: statusMap.failed,
-      leadIds: allLeadIds,
       mongoQuery: this.baseQuery,
       appliedFilters,
     };
@@ -118,7 +112,7 @@ export class LeadStatisticsService {
         sent: statusMap.manually_sent,
         skipped: statusMap.skipped,
         failed: statusMap.failed,
-        leadCount: allLeadIds.length,
+        leadCount: total,
         durationMs: duration,
         mongoQuery: this.baseQuery,
         appliedFilters,

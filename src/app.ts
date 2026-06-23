@@ -13,6 +13,7 @@ import { errorMiddleware } from './middlewares/error.middleware';
 import { notFoundMiddleware } from './middlewares/not-found.middleware';
 import { validationErrorHandler } from './middlewares/validation.middleware';
 import { requestTimeout } from './middlewares/timeout.middleware';
+import { rateLimiter } from './middlewares/rate-limiter.middleware';
 import routes from './routes/index';
 import { cronScheduler } from './schedulers/cron.scheduler';
 import { authService } from './services/auth.service';
@@ -44,6 +45,8 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+
+app.use(rateLimiter);
 
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));

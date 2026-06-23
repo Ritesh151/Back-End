@@ -1435,12 +1435,20 @@ leadSchema.index({ leadScore: -1 });
 leadSchema.index({ finalConfidence: -1 });
 
 leadSchema.index({ searchedState: 1, searchedCity: 1, searchedArea: 1 });
+leadSchema.index({ searchedKeyword: 1, searchedState: 1, searchedCity: 1, searchedArea: 1 });
+leadSchema.index({ searchedKeyword: 1, createdAt: -1 });
+leadSchema.index({ semanticKeyword: 1, createdAt: -1 });
 leadSchema.index({ category: 1, source: 1 });
 leadSchema.index({ source: 1, createdAt: -1 });
 leadSchema.index({ leadStatus: 1, aiQuality: 1 });
 leadSchema.index({ hasWebsite: 1, emailDiscoveryStatus: 1 });
 leadSchema.index({ companyName: 1, phone: 1 }, { unique: true, sparse: true });
 leadSchema.index({ aiStatus: 1, processingStartedAt: -1 });
+leadSchema.index({ qualificationLevel: 1, leadScore: -1 });
+leadSchema.index({ validationStatus: 1, finalConfidence: -1 });
+leadSchema.index({ searchSessionId: 1, createdAt: -1 });
+leadSchema.index({ website: 1 }, { sparse: true });
+leadSchema.index({ phone: 1 }, { sparse: true });
 
 leadSchema.pre('save', function (next) {
   if (this.isModified('website')) {

@@ -246,37 +246,30 @@ export class LeadController {
 
   async getLeadStatistics(_req: Request, res: Response, _next: NextFunction): Promise<void> {
     try {
+      const cachedStats = cacheService.get<Record<string, number>>('leadStatistics');
+      if (cachedStats) {
+        res.status(200).json({ success: true, data: cachedStats });
+        return;
+      }
+
       const stats = await leadStatisticsService.getLeadStatistics();
 
-      logger.info(
-        {
-          total: stats.totalLeads,
-          website: stats.websiteCount,
-          phone: stats.withPhoneCount,
-          pending: stats.pendingCount,
-          sent: stats.sentCount,
-        },
-        '[getLeadStatistics] API response'
-      );
+      const data = {
+        totalLeads: stats.totalLeads,
+        websiteCount: stats.websiteCount,
+        noWebsiteCount: stats.noWebsiteCount,
+        withPhoneCount: stats.withPhoneCount,
+        withoutPhoneCount: stats.withoutPhoneCount,
+        pendingCount: stats.pendingCount,
+        preparedCount: stats.preparedCount,
+        sentCount: stats.sentCount,
+        skippedCount: stats.skippedCount,
+        failedCount: stats.failedCount,
+      };
 
-      res.status(200).json({
-        success: true,
-        data: {
-          totalLeads: stats.totalLeads,
-          websiteCount: stats.websiteCount,
-          noWebsiteCount: stats.noWebsiteCount,
-          withPhoneCount: stats.withPhoneCount,
-          withoutPhoneCount: stats.withoutPhoneCount,
-          pendingCount: stats.pendingCount,
-          preparedCount: stats.preparedCount,
-          sentCount: stats.sentCount,
-          skippedCount: stats.skippedCount,
-          failedCount: stats.failedCount,
-          leadIds: stats.leadIds,
-          mongoQuery: stats.mongoQuery,
-          appliedFilters: stats.appliedFilters,
-        },
-      });
+      cacheService.set('leadStatistics', data, 10000);
+
+      res.status(200).json({ success: true, data });
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
       const errStack = error instanceof Error ? error.stack : undefined;
@@ -741,39 +734,54 @@ export class LeadController {
       if (area) query.searchedArea = { $regex: area as string, $options: 'i' };
 
       const totalLeads = await Lead.countDocuments(query);
-      const leads = await Lead.find(query).lean();
 
-      const keywordCounts: Record<string, number> = {};
-      const sourceCounts: Record<string, number> = {};
-      const domainCounts: Record<string, number> = {};
+      const [keywordCounts, sourceCounts, domainCounts] = await Promise.all([
+        Lead.aggregate([
+          { $match: query },
+          {
+            $group: {
+              _id: { $ifNull: ['$semanticKeyword', { $ifNull: ['$searchedKeyword', 'unknown'] }] },
+              count: { $sum: 1 },
+            },
+          },
+        ]).allowDiskUse(true),
+        Lead.aggregate([
+          { $match: query },
+          {
+            $group: {
+              _id: { $ifNull: ['$source', 'unknown'] },
+              count: { $sum: 1 },
+            },
+          },
+        ]).allowDiskUse(true),
+        Lead.aggregate([
+          { $match: { ...query, website: { $exists: true, $nin: [null, ''] } } },
+          {
+            $group: {
+              _id: {
+                $toLower: {
+                  $arrayElemAt: [
+                    { $split: [{ $ifNull: ['$website', ''] }, '//'] },
+                    1,
+                  ],
+                },
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ]).allowDiskUse(true),
+      ]);
 
-      for (const lead of leads) {
-        const kw = lead.semanticKeyword || lead.searchedKeyword || 'unknown';
-        keywordCounts[kw] = (keywordCounts[kw] || 0) + 1;
+      const kwMap: Record<string, number> = {};
+      for (const k of keywordCounts) kwMap[k._id] = k.count;
 
-        const src = lead.source || 'unknown';
-        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+      const srcMap: Record<string, number> = {};
+      for (const s of sourceCounts) srcMap[s._id] = s.count;
 
-        if (lead.website) {
-          try {
-            const hostname = new URL(lead.website.startsWith('http') ? lead.website : `https://${lead.website}`).hostname.replace(/^www\./, '');
-            domainCounts[hostname] = (domainCounts[hostname] || 0) + 1;
-          } catch {
-            // ignore invalid URLs
-          }
-        }
-      }
-
-      const uniqueWebsites = new Set<string>();
-      for (const lead of leads) {
-        if (lead.website) {
-          try {
-            const hostname = new URL(lead.website.startsWith('http') ? lead.website : `https://${lead.website}`).hostname.replace(/^www\./, '');
-            uniqueWebsites.add(hostname);
-          } catch {
-            // ignore invalid URLs
-          }
-        }
+      const domainMap: Record<string, number> = {};
+      for (const d of domainCounts) {
+        const hostname = d._id?.split('/')[0]?.split('?')[0]?.replace(/^www\./, '') || d._id;
+        if (hostname) domainMap[hostname] = (domainMap[hostname] || 0) + d.count;
       }
 
       const classificationStats = await leadMigrationService.getClassificationStats();
@@ -784,10 +792,10 @@ export class LeadController {
         city,
         area,
         totalLeads,
-        uniqueWebsites: uniqueWebsites.size,
-        keywordCounts,
-        sourceCounts,
-        domainCounts,
+        uniqueWebsites: Object.keys(domainMap).length,
+        keywordCounts: kwMap,
+        sourceCounts: srcMap,
+        domainCounts: domainMap,
         classificationStats,
       }, 'Keyword stats retrieved successfully');
     } catch (error) {
@@ -804,38 +812,25 @@ export class LeadController {
       const filterKeyword = req.query.keyword?.toString();
       const filterDate = req.query.date?.toString();
 
-      // Build match stage - only match leads that have search fields
-      const matchStage: Record<string, unknown> = {
-        $or: [
-          { searchedState: { $exists: true, $ne: null } },
-          { searchedKeyword: { $exists: true, $ne: null } },
-        ],
-      };
-
+      const conditions: Record<string, unknown>[] = [];
       if (search) {
-        matchStage.$and = [
-          {
-            $or: [
-              { searchedKeyword: { $regex: search, $options: 'i' } },
-              { semanticKeyword: { $regex: search, $options: 'i' } },
-              { searchedCity: { $regex: search, $options: 'i' } },
-              { searchedState: { $regex: search, $options: 'i' } },
-              { searchedArea: { $regex: search, $options: 'i' } },
-            ],
-          },
-        ];
-      }
-
-      if (filterState) {
-        if (!matchStage.$and) matchStage.$and = [];
-        (matchStage.$and as Record<string, unknown>[]).push({
-          searchedState: { $regex: filterState, $options: 'i' },
+        conditions.push({
+          $or: [
+            { searchedKeyword: { $regex: search, $options: 'i' } },
+            { semanticKeyword: { $regex: search, $options: 'i' } },
+            { searchedCity: { $regex: search, $options: 'i' } },
+            { searchedState: { $regex: search, $options: 'i' } },
+            { searchedArea: { $regex: search, $options: 'i' } },
+          ],
         });
       }
 
+      if (filterState) {
+        conditions.push({ searchedState: { $regex: filterState, $options: 'i' } });
+      }
+
       if (filterKeyword) {
-        if (!matchStage.$and) matchStage.$and = [];
-        (matchStage.$and as Record<string, unknown>[]).push({
+        conditions.push({
           $or: [
             { semanticKeyword: { $regex: filterKeyword, $options: 'i' } },
             { searchedKeyword: { $regex: filterKeyword, $options: 'i' } },
@@ -848,83 +843,80 @@ export class LeadController {
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(filterDate);
         endOfDay.setHours(23, 59, 59, 999);
-        if (!matchStage.$and) matchStage.$and = [];
-        (matchStage.$and as Record<string, unknown>[]).push({
-          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        conditions.push({ createdAt: { $gte: startOfDay, $lte: endOfDay } });
+      }
+
+      const matchStage: Record<string, unknown> = {};
+      if (conditions.length > 0) matchStage.$and = conditions;
+
+      const groupId = {
+        searchedState: { $ifNull: ['$searchedState', 'Unknown'] },
+        searchedCity: { $ifNull: ['$searchedCity', 'Unknown'] },
+        searchedArea: { $ifNull: ['$searchedArea', 'Unknown'] },
+        searchedKeyword: { $ifNull: ['$semanticKeyword', '$searchedKeyword'] },
+      };
+
+      const cacheKey = `searchHistory:${search || ''}:${filterState || ''}:${filterKeyword || ''}:${filterDate || ''}:${page}:${limit}`;
+      const cached = cacheService.get<{ total: number; data: any[] }>(cacheKey);
+      if (cached) {
+        logger.info({ total: cached.total, page, limit }, '[getSearchHistory] Cache hit');
+        const dataWithSrNo = cached.data.map((item: any, idx: number) => ({
+          ...item,
+          srNo: idx + 1 + (page - 1) * limit,
+        }));
+        res.status(200).json({
+          success: true,
+          data: dataWithSrNo,
+          pagination: {
+            page,
+            limit,
+            total: cached.total,
+            totalPages: Math.ceil(cached.total / limit),
+          },
+          debug: {
+            totalLeadsInDatabase: cached.total > 0 ? 'Multiple groups' : '0 groups',
+          },
         });
+        return;
       }
 
-      // Build aggregation pipeline for count
-      const countPipeline: any[] = [
-        { $match: matchStage },
-        {
-          $group: {
-            _id: {
-              searchedState: { $ifNull: ['$searchedState', 'Unknown'] },
-              searchedCity: { $ifNull: ['$searchedCity', 'Unknown'] },
-              searchedArea: { $ifNull: ['$searchedArea', 'Unknown'] },
-              searchedKeyword: { $ifNull: ['$semanticKeyword', '$searchedKeyword'] },
+      const [countResult, dataResult] = await Promise.all([
+        Lead.aggregate([
+          { $match: matchStage },
+          { $group: { _id: groupId } },
+          { $count: 'total' },
+        ]).allowDiskUse(true),
+        Lead.aggregate([
+          { $match: matchStage },
+          { $sort: { createdAt: -1 } },
+          {
+            $group: {
+              _id: groupId,
+              totalLeads: { $sum: 1 },
+              latestCreatedAt: { $max: '$createdAt' },
+              firstCreatedAt: { $min: '$createdAt' },
             },
           },
-        },
-        { $count: 'total' },
-      ];
+          {
+            $project: {
+              _id: 0,
+              state: '$_id.searchedState',
+              city: '$_id.searchedCity',
+              area: '$_id.searchedArea',
+              keyword: '$_id.searchedKeyword',
+              totalLeads: 1,
+              latestSearchDate: '$latestCreatedAt',
+              firstSearchDate: '$firstCreatedAt',
+            },
+          },
+          { $sort: { latestSearchDate: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+        ]).allowDiskUse(true),
+      ]);
 
-      const countResult = await Lead.aggregate(countPipeline);
       const total = countResult.length > 0 ? countResult[0].total : 0;
-
-      logger.info(
-        { total, page, limit },
-        '[getSearchHistory] Total search groups found'
-      );
-
-      // Build aggregation pipeline for data
-      const dataPipeline: any[] = [
-        { $match: matchStage },
-        {
-          $group: {
-            _id: {
-              searchedState: { $ifNull: ['$searchedState', 'Unknown'] },
-              searchedCity: { $ifNull: ['$searchedCity', 'Unknown'] },
-              searchedArea: { $ifNull: ['$searchedArea', 'Unknown'] },
-              searchedKeyword: { $ifNull: ['$semanticKeyword', '$searchedKeyword'] },
-            },
-            totalLeads: { $sum: 1 },
-            latestCreatedAt: { $max: '$createdAt' },
-            firstCreatedAt: { $min: '$createdAt' },
-            leadIds: { $push: '$_id' },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            state: '$_id.searchedState',
-            city: '$_id.searchedCity',
-            area: '$_id.searchedArea',
-            keyword: '$_id.searchedKeyword',
-            totalLeads: 1,
-            latestSearchDate: '$latestCreatedAt',
-            firstSearchDate: '$firstCreatedAt',
-          },
-        },
-        { $sort: { latestSearchDate: -1 } },
-        { $skip: (page - 1) * limit },
-        { $limit: limit },
-      ];
-
-      const dataResult = await Lead.aggregate(dataPipeline);
-
-      logger.info(
-        { returned: dataResult.length, total, page, limit },
-        '[getSearchHistory] Data fetched successfully'
-      );
-
-      if (dataResult.length === 0 && total > 0) {
-        logger.warn(
-          { page, limit, total },
-          '[getSearchHistory] No data for page but total > 0'
-        );
-      }
+      if (total > 0) cacheService.set(cacheKey, { total, data: dataResult }, 30000);
 
       const totalPages = Math.ceil(total / limit);
 
