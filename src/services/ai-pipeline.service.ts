@@ -106,7 +106,7 @@ export class AIPipelineService {
 
             case 'Report Generation':
               try {
-                const { reportService } = await import('../modules/reports/report.service');
+                const { reportService } = await import('../modules/reports/report.service.js');
                 await reportService.generateReport(leadId);
               } catch (reportErr: unknown) {
                 const reportMsg = reportErr instanceof Error ? reportErr.message : String(reportErr);

@@ -212,7 +212,7 @@ export class MonitorEngine {
   }
 
   async getLiveStatus(sessionId: string): Promise<SessionLiveStatus | null> {
-    const session = await (await import('../../automation/area-automation.model')).AreaSessionModel.findById(sessionId).lean();
+    const session = await (await import('../../automation/area-automation.model.js')).AreaSessionModel.findById(sessionId).lean();
     if (!session) return null;
 
     const activeJob = await AreaJobModel.findOne({ sessionId, status: 'running' }).sort({ startedAt: -1 }).lean();

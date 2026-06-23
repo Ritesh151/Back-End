@@ -199,7 +199,7 @@ export class ReportService {
 
       logger.info('[Report] Report Started — auto-gen queued');
 
-      const { reportQueue } = await import('./report.queue');
+      const { reportQueue } = await import('./report.queue.js');
       reportQueue.enqueue(leadId).catch((err: unknown) => {
         logger.error({ err: err instanceof Error ? err.message : String(err), leadId }, '[ReportService] Auto-generation failed');
       });

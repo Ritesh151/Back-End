@@ -20,7 +20,7 @@ async function seed() {
     process.exit(1);
   }
 
-  const { User } = await import('./models/User');
+  const { User } = await import('./models/User.js');
 
   const existing = await User.findOne({ email: adminEmail });
   if (existing) {
