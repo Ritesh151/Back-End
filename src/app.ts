@@ -7,7 +7,6 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { connectDB, disconnectDB } from './config/database';
-import './workers/search.worker';
 import { logger } from './utils/logger';
 import { createServer } from 'http';
 import { errorMiddleware } from './middlewares/error.middleware';

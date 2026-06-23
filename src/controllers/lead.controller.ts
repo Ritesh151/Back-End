@@ -21,9 +21,6 @@ import {
   AnalyzeRequest,
   BulkAnalyzeRequest,
 } from '../types/analysis.types';
-// import { semanticSearchService } from '../services/semantic-search.service'; // Unused
-import { searchQueue } from '../queues/search.queue';
-
 import crypto from 'crypto';
 
 export class LeadController {
@@ -109,13 +106,40 @@ export class LeadController {
         { upsert: true }
       );
 
-      // Enqueue job to BullMQ
-      const job = await searchQueue.add('scrape-businesses', options, { jobId });
+      // Run search asynchronously
+      setImmediate(async () => {
+        try {
+          const { ScraperService } = await import('../services/scraper.service.js');
+          const scraperService = new ScraperService();
+          const result = await scraperService.scrapeBusinesses(options);
+          const count = result.totalStored || 0;
+          await SearchAnalytics.findOneAndUpdate(
+            { sessionId: jobId },
+            {
+              $set: {
+                status: 'completed',
+                totalLeadsFound: result.totalExtracted || 0,
+                totalUniqueLeads: count,
+                totalDuplicatesRemoved: result.totalDuplicates || 0,
+                completedAt: new Date(),
+              },
+            },
+            { upsert: true }
+          );
+          logger.info({ sessionId: jobId, totalStored: count }, 'Search completed');
+        } catch (error) {
+          logger.error({ err: error, sessionId: jobId }, 'Search failed');
+          await SearchAnalytics.findOneAndUpdate(
+            { sessionId: jobId },
+            { $set: { status: 'failed', failureReason: error instanceof Error ? error.message : 'Unknown error' } }
+          );
+        }
+      });
 
       res.status(202).json({
         success: true,
         message: 'Search started in background',
-        jobId: job.id,
+        jobId,
       });
 
     } catch (error: unknown) {
