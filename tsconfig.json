@@ -7,7 +7,6 @@
     ],
     "module": "Node16",
     "moduleResolution": "node16",
-    "allowJs": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "removeComments": true,
