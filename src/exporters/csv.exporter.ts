@@ -1,12 +1,8 @@
-import * as csvWriter from 'csv-write-stream';
+import csvWriter = require('csv-write-stream');
 import { createWriteStream } from 'fs';
-import { pipeline } from 'stream';
-import { promisify } from 'util';
 import { Lead, ILead } from '../models/Lead';
 import { logger } from '../utils/logger';
 import { QualificationLevel, WebsiteStatus } from '../types/analysis.types';
-
-const streamPipeline = promisify(pipeline);
 
 export interface ExportFilters {
   qualificationLevel?: QualificationLevel;
@@ -119,10 +115,12 @@ export class CSVExporter {
     const writeStream = createWriteStream(filepath);
     
     // Create CSV stream with columns
-    const csvStream = new (csvWriter as any)({
+    const csvStream = csvWriter({
       headers: columns.map(col => col.label),
       sendHeaders: true,
     });
+    // Pipe CSV stream to file write stream
+    csvStream.pipe(writeStream);
 
     // Convert lead objects to CSV format
     const csvData = leads.map(lead => {
@@ -142,17 +140,14 @@ export class CSVExporter {
     });
 
     // Pipeline the streams
-    await streamPipeline(csvStream, writeStream);
-
-    // Write CSV data
+    // Write CSV data after setting up pipe
     csvData.forEach(row => csvStream.write(row));
-    
-    // End the stream
     csvStream.end();
 
     // Wait for stream to finish
+    // Wait for the file stream to finish
     await new Promise<void>((resolve, reject) => {
-      writeStream.on('finish', () => resolve());
+      writeStream.on('finish', resolve);
       writeStream.on('error', reject);
     });
 

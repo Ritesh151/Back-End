@@ -5,8 +5,8 @@
       "ES2021",
       "DOM"
     ],
-    "module": "Node16",
-    "moduleResolution": "node16",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
     "removeComments": true,
