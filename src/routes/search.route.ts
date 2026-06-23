@@ -103,6 +103,13 @@ router.get(
 );
 
 router.get(
+  '/history/aggregated',
+  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    return leadController.getSearchHistory(req, res, next);
+  })
+);
+
+router.get(
   '/history/:sessionId/location-summary',
   asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
