@@ -23,8 +23,10 @@ export class ContactPageDetectorService {
 
     try {
       if (!this.browserManager) {
-        this.browserManager = new (await import('../scrapers/browser-manager')).PlaywrightBrowser();
+        this.browserManager = new (await import('../scrapers/browser-manager.js')).PlaywrightBrowser();
       }
+
+      const manager = this.browserManager!;
 
       // Normalize URL
       let url = website;
@@ -56,7 +58,7 @@ export class ContactPageDetectorService {
         try {
           const contactUrl = url.replace(/\/+$/, '') + path;
           
-          const { page } = await this.browserManager.initialize();
+          const { page } = await manager.initialize();
           page.setDefaultTimeout(timeout);
 
           const response = await page.goto(contactUrl, { 
@@ -65,7 +67,6 @@ export class ContactPageDetectorService {
           });
 
           if (response && response.status() === 200) {
-            // Analyze the contact page
             const pageInfo = await this.analyzeContactPage(page);
             contactPages.push({
               url: contactUrl,
@@ -73,18 +74,16 @@ export class ContactPageDetectorService {
               extractionTime: 0,
             });
 
-            await this.browserManager.close();
+            await manager.close();
             logger.info(`Found contact page: ${contactUrl}`);
           } else {
-            await this.browserManager.close();
+            await manager.close();
           }
 
         } catch (error) {
-          // Try next path
           try {
-            await this.browserManager?.close();
+            await manager.close();
           } catch {
-            // Ignore close errors
           }
         }
       }
@@ -170,16 +169,17 @@ export class ContactPageDetectorService {
   async isContactPage(url: string): Promise<boolean> {
     try {
       if (!this.browserManager) {
-        this.browserManager = new (await import('../scrapers/browser-manager')).PlaywrightBrowser();
+        this.browserManager = new (await import('../scrapers/browser-manager.js')).PlaywrightBrowser();
       }
 
-      const { page } = await this.browserManager.initialize();
+      const manager = this.browserManager!;
+      const { page } = await manager.initialize();
       page.setDefaultTimeout(5000);
 
       const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 5000 });
 
       if (!response || response.status() !== 200) {
-        await this.browserManager.close();
+        await manager.close();
         return false;
       }
 
@@ -188,7 +188,6 @@ export class ContactPageDetectorService {
         const title = document.title || '';
         const h1 = document.querySelector('h1')?.innerText || '';
 
-        // Check for contact keywords
         const contactKeywords = [
           'contact',
           'contact us',
@@ -207,7 +206,7 @@ export class ContactPageDetectorService {
         return contactKeywords.some(keyword => allText.includes(keyword));
       });
 
-      await this.browserManager.close();
+      await manager.close();
       return isContact;
 
     } catch {

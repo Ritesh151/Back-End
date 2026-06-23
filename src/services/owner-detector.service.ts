@@ -33,26 +33,24 @@ export class OwnerDetectorService {
 
     try {
       if (!this.browserManager) {
-        this.browserManager = new (await import('../scrapers/browser-manager')).PlaywrightBrowser();
+        this.browserManager = new (await import('../scrapers/browser-manager.js')).PlaywrightBrowser();
       }
 
-      const { page } = await this.browserManager.initialize();
+      const manager = this.browserManager!;
+      const { page } = await manager.initialize();
       page.setDefaultTimeout(15000);
 
-      // Normalize URL
       let url = website;
       if (!url.match(/^https?:\/\//i)) {
         url = 'https://' + url;
       }
 
-      // Try to find about page
       const aboutPage = await this.findAboutPage(page, url);
       const targetUrl = aboutPage || url;
 
       await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 15000 });
       await page.waitForTimeout(1000);
 
-      // Extract owner info
       const ownerData = await page.evaluate(() => {
         const text = document.body.innerText || '';
         const metaTitle = document.querySelector('title')?.innerText || '';
@@ -67,7 +65,7 @@ export class OwnerDetectorService {
         };
       });
 
-      await this.browserManager.close();
+      await manager.close();
 
       // Extract owner names from content
       const { founders, ceo, management } = this.parseOwnerNames(ownerData);

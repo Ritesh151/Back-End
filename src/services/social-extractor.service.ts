@@ -31,13 +31,13 @@ export class SocialExtractorService {
 
     try {
       if (!this.browserManager) {
-        this.browserManager = new (await import('../scrapers/browser-manager')).PlaywrightBrowser();
+        this.browserManager = new (await import('../scrapers/browser-manager.js')).PlaywrightBrowser();
       }
 
-      const { page } = await this.browserManager.initialize();
+      const manager = this.browserManager!;
+      const { page } = await manager.initialize();
       page.setDefaultTimeout(timeout);
 
-      // Normalize URL
       let url = website;
       if (!url.match(/^https?:\/\//i)) {
         url = 'https://' + url;
@@ -45,7 +45,6 @@ export class SocialExtractorService {
 
       await page.goto(url, { waitUntil: 'networkidle', timeout });
 
-      // Wait for content to load
       await page.waitForTimeout(1000);
 
       // Extract social links
@@ -173,14 +172,15 @@ export class SocialExtractorService {
   ): Promise<boolean> {
     try {
       if (!this.browserManager) {
-        this.browserManager = new (await import('../scrapers/browser-manager')).PlaywrightBrowser();
+        this.browserManager = new (await import('../scrapers/browser-manager.js')).PlaywrightBrowser();
       }
 
-      const { page } = await this.browserManager.initialize();
+      const manager = this.browserManager!;
+      const { page } = await manager.initialize();
       page.setDefaultTimeout(timeout);
 
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
-      await this.browserManager.close();
+      await manager.close();
 
       return true;
     } catch {
